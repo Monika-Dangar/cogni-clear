@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Decision, Emotion } from '../types';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Activity, AlertTriangle, Lightbulb, Target, Info } from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Activity, AlertTriangle, Lightbulb, Target, Info, TrendingUp } from 'lucide-react';
 import DecisionGraph from './DecisionGraph';
 
 interface DashboardProps {
@@ -52,6 +52,17 @@ const Dashboard: React.FC<DashboardProps> = ({ decisions, patterns, onSelectDeci
         });
     });
     return Object.keys(emos).map(k => ({ subject: k, A: emos[k], fullMark: decisions.length || 5 }));
+  }, [decisions]);
+
+  // Longitudinal Data (Clarity over Time)
+  const trendData = useMemo(() => {
+    // Sort by date ascending
+    const sorted = [...decisions].sort((a, b) => new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime());
+    return sorted.map(d => ({
+        date: new Date(d.dateCreated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        score: d.analysis?.clarityScore || 0,
+        title: d.title
+    }));
   }, [decisions]);
 
   if (decisions.length === 0) {
@@ -105,6 +116,46 @@ const Dashboard: React.FC<DashboardProps> = ({ decisions, patterns, onSelectDeci
         {/* Semantic Graph (Takes up full width on top of grid) */}
         <div className="lg:col-span-3">
              <DecisionGraph decisions={decisions} onSelect={onSelectDecision || (() => {})} />
+        </div>
+
+        {/* Longitudinal Trend Chart (New Module) */}
+        <div className="lg:col-span-3 bg-slate-950 border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-100 flex items-center">
+                        <TrendingUp className="w-5 h-5 text-indigo-400 mr-2" />
+                        Longitudinal Insight: Clarity Trend
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Tracking the evolution of your decision reasoning quality over time.</p>
+                </div>
+            </div>
+            <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <XAxis dataKey="date" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
+                            itemStyle={{ color: '#818cf8' }}
+                        />
+                        <Area 
+                            type="monotone" 
+                            dataKey="score" 
+                            stroke="#6366f1" 
+                            fillOpacity={1} 
+                            fill="url(#colorScore)" 
+                            strokeWidth={3}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
 
         {/* Pattern Insight */}

@@ -7,6 +7,7 @@ import DecisionDetail from './components/DecisionDetail';
 import AuthScreen from './components/AuthScreen';
 import { Decision, User } from './types';
 import { generatePatterns } from './services/geminiService';
+import { dataService } from './services/dataService';
 import { Brain, CheckCircle2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -17,10 +18,7 @@ const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
-  
-  // Decisions are now derived from user ID
   const [decisions, setDecisions] = useState<Decision[]>([]);
-  
   const [patterns, setPatterns] = useState<any>(null);
 
   // Onboarding States
@@ -28,34 +26,28 @@ const App: React.FC = () => {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
 
-  // Load user data on mount or user change
+  // Persistence: Load decisions when User changes
   useEffect(() => {
     if (user) {
         localStorage.setItem('cogniclear_user', JSON.stringify(user));
-        const storageKey = `cogniclear_decisions_${user.id}`;
-        const savedDecisions = localStorage.getItem(storageKey);
-        const userDecisions = savedDecisions ? JSON.parse(savedDecisions) : [];
-        setDecisions(userDecisions);
-
-        if (userDecisions.length === 0) {
-            setShowWelcomeModal(true);
-        }
+        
+        // Fetch from "DB" (dataService)
+        dataService.getDecisions(user.id).then(userDecisions => {
+            setDecisions(userDecisions);
+            if (userDecisions.length === 0) {
+                setShowWelcomeModal(true);
+            }
+        });
     } else {
         localStorage.removeItem('cogniclear_user');
         setDecisions([]);
     }
   }, [user]);
 
-  // Save decisions whenever they change (if user logged in)
+  // Insights: Generate patterns whenever decisions update
   useEffect(() => {
-    if (user) {
-        const storageKey = `cogniclear_decisions_${user.id}`;
-        localStorage.setItem(storageKey, JSON.stringify(decisions));
-        
-        // Generate patterns if we have data
-        if (decisions.length > 0) {
-             generatePatterns(decisions).then(setPatterns);
-        }
+    if (user && decisions.length > 0) {
+         generatePatterns(decisions).then(setPatterns);
     }
   }, [decisions, user]);
 
@@ -68,6 +60,7 @@ const App: React.FC = () => {
     setDecisions([]);
     setPatterns(null);
     setShowWelcomeModal(false);
+    dataService.clearLocalCache();
   }
 
   const startOnboarding = () => {
@@ -76,9 +69,13 @@ const App: React.FC = () => {
     setActiveTab('new');
   };
 
-  const handleSaveDecision = (decision: Decision) => {
-    setDecisions(prev => [decision, ...prev]);
-    setSelectedDecisionId(decision.id);
+  const handleSaveDecision = async (decision: Decision) => {
+    // Save to "DB"
+    const savedDecision = await dataService.createDecision(decision);
+    
+    // Update local state
+    setDecisions(prev => [savedDecision, ...prev]);
+    setSelectedDecisionId(savedDecision.id);
     
     if (isOnboarding) {
         setIsOnboarding(false);
@@ -88,7 +85,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateDecision = (updatedDecision: Decision) => {
+  const handleUpdateDecision = async (updatedDecision: Decision) => {
+    // Update in "DB"
+    await dataService.updateDecision(updatedDecision);
+
+    // Update local state
     setDecisions(prev => prev.map(d => d.id === updatedDecision.id ? updatedDecision : d));
   };
 
@@ -130,7 +131,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard decisions={decisions} patterns={patterns} onSelectDecision={handleSelectDecision} />;
       case 'new':
-        return <DecisionForm onSave={handleSaveDecision} isOnboarding={isOnboarding} />;
+        return <DecisionForm userId={user.id} onSave={handleSaveDecision} isOnboarding={isOnboarding} />;
       case 'log':
         return <DecisionList decisions={decisions} onSelect={handleSelectDecision} />;
       default:

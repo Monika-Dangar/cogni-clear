@@ -5,11 +5,12 @@ import { analyzeDecision } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
 
 interface DecisionFormProps {
+  userId: string;
   onSave: (decision: Decision) => void;
   isOnboarding?: boolean;
 }
 
-const DecisionForm: React.FC<DecisionFormProps> = ({ onSave, isOnboarding }) => {
+const DecisionForm: React.FC<DecisionFormProps> = ({ userId, onSave, isOnboarding }) => {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -71,6 +72,7 @@ const DecisionForm: React.FC<DecisionFormProps> = ({ onSave, isOnboarding }) => 
 
       const newDecision: Decision = {
         id: uuidv4(),
+        userId: userId, // Link to user
         title: formData.title,
         description: formData.description,
         context: formData.context,

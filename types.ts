@@ -51,15 +51,16 @@ export interface OutcomeAnalysis {
 
 export interface Decision {
   id: string;
+  userId: string; // Foreign Key to User
   title: string;
   description: string;
   context: string;
   optionsConsidered: string[];
-  emotions: Emotion[]; // Changed from single Emotion to array
+  emotions: Emotion[]; 
   dateCreated: string;
   status: DecisionStatus;
   analysis?: DecisionAnalysis;
-  outcome?: string; // User introspection after the fact
+  outcome?: string; 
   outcomeDate?: string;
   outcomeAnalysis?: OutcomeAnalysis;
   tags: string[];
